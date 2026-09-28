@@ -21,6 +21,14 @@
      so arriving from the portfolio keeps the visitor's choice. -->
 <script>(function(){try{var t=localStorage.getItem('theme');if(t!=='light'&&t!=='dark'){t=window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';}document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 
+<!-- The original Space opts into PayPal; v2 keeps its existing purchase URL. -->
+<script>
+try {
+  if (new URLSearchParams(window.location.search).get('checkout') === 'wan-studio-pro') {
+    document.documentElement.classList.add('pro-checkout');
+  }
+} catch (e) {}
+</script>
 <style>
 /* Tokens copied from the site stylesheet rather than imported: this page must
    keep working exactly as-is if the main stylesheet is ever restructured. */
@@ -114,6 +122,19 @@ button{
 button:hover:not(:disabled){transform:translateY(-1px);
   box-shadow:0 12px 28px -12px var(--brand)}
 button:disabled{opacity:.55;cursor:not-allowed;transform:none}
+.pro-checkout-only{display:none}
+.pro-checkout .pro-checkout-only{display:block}
+.pro-checkout .legacy-checkout{display:none}
+.paypal-choice{padding:18px;margin-bottom:24px;border:1px solid var(--border-2);
+  border-radius:var(--radius);background:var(--surface-2)}
+.paypal-choice h2{color:var(--heading);font-size:1.05rem;margin-bottom:8px}
+.paypal-choice p{font-size:.88rem;color:var(--muted);margin-top:10px}
+.paypal-link{display:block;margin-top:14px;padding:13px 18px;border-radius:10px;
+  background:#ffc439;color:#172c50;text-align:center;font-weight:700}
+.paypal-link:hover{background:#f2b72e;text-decoration:none}
+.paypal-link:focus-visible{outline:3px solid var(--brand);outline-offset:3px}
+.paypal-choice .delivery-link{display:inline-block;margin-top:12px;font-size:.88rem}
+.wise-heading{font-size:1.05rem;color:var(--heading);margin-bottom:12px}
 
 .note{
   margin-top:18px;padding:13px 15px;border-radius:12px;font-size:.85rem;
@@ -174,10 +195,12 @@ button:disabled{opacity:.55;cursor:not-allowed;transform:none}
     <!-- ---------- form ---------- -->
     <div class="form-wrap" id="formWrap">
       <h1>Wan Studio Pro access</h1>
-      <p class="sub">One-time payment. Your key is emailed right after checkout
+      <p class="sub legacy-checkout">One-time payment. Your key is emailed right after checkout
         and never expires.</p>
+      <p class="sub pro-checkout-only">One-time payment. I verify your payment and
+        email your permanent access key.</p>
 
-      <p class="alt-pay">
+      <p class="alt-pay legacy-checkout">
         <b>&#128231; Wise not available where you are?</b>
         Email <a href="mailto:vimalprasad564@gmail.com?subject=Wan%20Studio%20Pro%20access%20key">vimalprasad564@gmail.com</a>
         and I will send a PayPal link instead &mdash; same price, same key.
@@ -195,6 +218,22 @@ button:disabled{opacity:.55;cursor:not-allowed;transform:none}
         <li>Works on any device &mdash; no Hugging Face account needed to buy</li>
       </ul>
 
+      <section class="paypal-choice pro-checkout-only" aria-labelledby="paypalTitle">
+        <h2 id="paypalTitle">Pay with PayPal</h2>
+        <p>Pay securely on PayPal, then email your transaction ID and the email
+          address where you want your key. I will check the payment and send
+          your key personally.</p>
+        <a class="paypal-link" id="paypalLink"
+           href="https://www.paypal.com/ncp/payment/CZFPFTUK7AEYQ"
+           target="_blank" rel="noopener noreferrer">Continue to PayPal &rarr;</a>
+        <p>For customers outside India. Check the item, amount and currency on
+          PayPal before confirming payment.</p>
+        <a class="delivery-link"
+           href="mailto:vimalprasad564@gmail.com?subject=Wan%20Studio%20Pro%20-%20PayPal%20access%20key&amp;body=PayPal%20transaction%20ID%3A%20%0APayment%20email%3A%20%0ASend%20my%20key%20to%3A%20">After paying: email your transaction details &rarr;</a>
+        <p>Key delivery follows manual payment verification.</p>
+      </section>
+
+      <h2 class="wise-heading pro-checkout-only">Or pay with Wise</h2>
       <form id="payForm" novalidate>
         <div class="field">
           <label for="name">Your name</label>
@@ -229,7 +268,8 @@ button:disabled{opacity:.55;cursor:not-allowed;transform:none}
           <rect x="3" y="11" width="18" height="11" rx="2"/>
           <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
         </svg>
-        Secure payment by Wise
+        <span class="legacy-checkout">Secure payment by Wise</span>
+        <span class="pro-checkout-only">Secure payment by Wise or PayPal</span>
       </div>
     </div>
 
@@ -260,7 +300,7 @@ button:disabled{opacity:.55;cursor:not-allowed;transform:none}
 
 <script>
 /* ------------------------------------------------------------------ *
- * The only thing to change after deploying the backend.
+ * Existing Wise service. The PayPal link above works independently.
  * ------------------------------------------------------------------ */
 var BACKEND = "https://wan-pro-backend.onrender.com";
 
@@ -271,6 +311,7 @@ var btn       = document.getElementById('payBtn');
 var formErr   = document.getElementById('formErr');
 var formWrap  = document.getElementById('formWrap');
 var result    = document.getElementById('result');
+var proCheckout = document.documentElement.classList.contains('pro-checkout');
 
 /* Deliberately permissive: the address is validated for real by whether the
    key email arrives. Rejecting valid-but-unusual addresses here would cost a
@@ -288,7 +329,8 @@ fetch(BACKEND + '/config')
   .then(function(r){ return r.json(); })
   .then(function(c){
     if (c && c.display){
-      document.getElementById('priceText').textContent = c.display;
+      // The PayPal hosted link has its own price. Wise still uses /config.
+      if (!proCheckout) document.getElementById('priceText').textContent = c.display;
       document.getElementById('btnPrice').textContent  = c.display;
     }
   })
@@ -358,7 +400,11 @@ form.addEventListener('submit', function(e){
       '</div>' +
       '<div style="padding: 16px;">' +
       '<b style="color: var(--heading)">Step 3</b><br>' +
-      'Your key arrives by email, usually within minutes.' +
+      (proCheckout
+        ? 'After paying, email your Wise reference and preferred delivery email to ' +
+          '<a href="mailto:vimalprasad564@gmail.com?subject=Wan%20Studio%20Pro%20-%20Wise%20access%20key">vimalprasad564@gmail.com</a>. ' +
+          'I will verify your payment and email your access key.'
+        : 'Your key arrives by email, usually within minutes.') +
       '</div>' +
       '</div>',
       '');
